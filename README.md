@@ -1,31 +1,23 @@
-# 🏥 Hospital Management System (Phase 2)
+# 🏥 Hospital Management System (Phase 3)
 
 ## 📘 Overview
-This is a **C-based console application** for managing hospital patients.  
-It uses **queues** to manage active patients and **stacks** to handle undoing discharges.  
-The program allows adding, displaying, discharging, undoing discharges, and saving/loading patient data from a file.
+A console-based Hospital Management System implemented in C, demonstrating the use of arrays, stack, priority queue (logic), searching, and file handling.
+This project is designed for academic use (BCA / DSA / C programming) and follows real-world hospital workflow logic.
 
----
+📌 Features
 
-## ⚙️ Features
-- ➕ Add new patients  
-- 👀 Display all patients in the queue  
-- 🏠 Discharge the first patient (FIFO)  
-- ↩️ Undo the most recent discharge (LIFO)  
-- 💾 Save and load data from a file (`patients.txt`)  
-- 🚪 Auto-save data on exit  
+✅ Add patient records
 
----
+✅ Priority handling for emergency patients
 
-## 🧱 Data Structures Used
-- **Queue** → Manages current patients (First In, First Out)  
-- **Stack** → Stores discharged patients for undo (Last In, First Out)
+✅ Unique Patient ID (acts as Primary Key)
 
-Each patient record is stored as:
-```c
-struct Patient {
-    int id;
-    char name[50];
-    int age;
-    char disease[50];
-};
+✅ Display all active patients
+
+✅ Search patient details (Active & Discharged)
+
+✅ Discharge patient
+
+✅ Stack to store recently discharged patient IDs
+
+✅ File handling for permanent record storage
