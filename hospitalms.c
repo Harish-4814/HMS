@@ -1,162 +1,262 @@
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define MAX 100
 
+// ---------------- STRUCTURE ----------------
 struct Patient {
     int id;
-    char name[50];
+    char name[30];
     int age;
-    char disease[50];
+    int priority;   // 1 = Emergency, 0 = Normal
 };
 
-struct Patient queue[MAX];
-struct Patient stack[MAX];
-int front = -1, rear = -1, top = -1;
+// ---------------- GLOBAL VARIABLES ----------------
+struct Patient patients[MAX];
+int count = 0;
 
-void addPatient();
-void displayPatients();
-void dischargePatient();
-void undoDischarge();
-void saveToFile();
-void loadFromFile();
+// Stack for discharged patient IDs
+int stack[MAX];
+int top = -1;
 
-void addPatient() {
-    if (rear == MAX - 1) {
-        printf("\nQueue is full!\n");
+// ---------------- CHECK UNIQUE ID ----------------
+int idExists(int id) {
+    int i;
+    for (i = 0; i < count; i++) {
+        if (patients[i].id == id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// ---------------- SAVE ACTIVE PATIENTS ----------------
+void saveToFile() {
+    FILE *fp;
+    int i;
+
+    fp = fopen("patients.txt", "w");
+    if (fp == NULL) {
+        printf("File error!\n");
         return;
     }
 
+    for (i = 0; i < count; i++) {
+        fprintf(fp, "%d %s %d %d\n",
+                patients[i].id,
+                patients[i].name,
+                patients[i].age,
+                patients[i].priority);
+    }
+    fclose(fp);
+}
+
+// ---------------- SAVE DISCHARGED PATIENT ----------------
+void saveDischargedToFile(struct Patient p) {
+    FILE *fp;
+
+    fp = fopen("discharged.txt", "a");
+    if (fp == NULL) {
+        printf("File error!\n");
+        return;
+    }
+
+    fprintf(fp, "%d %s %d %d\n",
+            p.id, p.name, p.age, p.priority);
+
+    fclose(fp);
+}
+
+// ---------------- ADD PATIENT (PRIORITY INSERTION) ----------------
+void addPatient() {
     struct Patient p;
+    int i;
+
     printf("\nEnter Patient ID: ");
     scanf("%d", &p.id);
+
+    if (idExists(p.id)) {
+        printf("Error: Patient ID already exists!\n");
+        return;
+    }
+
     printf("Enter Name: ");
     scanf("%s", p.name);
     printf("Enter Age: ");
     scanf("%d", &p.age);
-    printf("Enter Disease: ");
-    scanf("%s", p.disease);
+    printf("Emergency? (1 = Yes, 0 = No): ");
+    scanf("%d", &p.priority);
 
-    if (front == -1)
-        front = 0;
-    queue[++rear] = p;
+    if (p.priority == 1) {
+        for (i = count; i > 0; i--) {
+            patients[i] = patients[i - 1];
+        }
+        patients[0] = p;
+    } else {
+        patients[count] = p;
+    }
 
-    printf("\nPatient added successfully!\n");
+    count++;
+    saveToFile();
+    printf("Patient added successfully!\n");
 }
 
+// ---------------- DISPLAY ACTIVE PATIENTS ----------------
 void displayPatients() {
     int i;
-    if (front == -1) {
-        printf("\nNo patients in queue!\n");
+
+    if (count == 0) {
+        printf("No active patients.\n");
         return;
     }
 
-    printf("\n--- Current Patients in Queue ---\n");
-    for (i = front; i <= rear; i++) {
-        printf("ID: %d | Name: %s | Age: %d | Disease: %s\n",
-               queue[i].id, queue[i].name, queue[i].age, queue[i].disease);
+    printf("\nID\tName\tAge\tType\n");
+    for (i = 0; i < count; i++) {
+        printf("%d\t%s\t%d\t%s\n",
+               patients[i].id,
+               patients[i].name,
+               patients[i].age,
+               patients[i].priority ? "Emergency" : "Normal");
     }
 }
 
-void dischargePatient() {
-    if (front == -1) {
-        printf("\nNo patients to discharge!\n");
-        return;
-    }
-
-    struct Patient discharged = queue[front];
-    if (front == rear)
-        front = rear = -1;
-    else
-        front++;
-
-    stack[++top] = discharged;
-    printf("\nPatient %s (ID %d) discharged successfully.\n", discharged.name, discharged.id);
-}
-
-void undoDischarge() {
-    if (top == -1) {
-        printf("\nNo discharged patients to undo.\n");
-        return;
-    }
-
-    struct Patient p = stack[top--];
-    if (front == -1)
-        front = 0;
-    queue[++rear] = p;
-
-    printf("\nDischarge of %s (ID %d) undone successfully.\n", p.name, p.id);
-}
-
-void saveToFile() {
-    FILE *fp = fopen("patients.txt", "w");
-    if (fp == NULL) {
-        printf("\nError opening file!\n");
-        return;
-    }
-
-    int i;
-    for (i = front; i <= rear; i++) {
-        fprintf(fp, "%d %s %d %s\n",
-                queue[i].id, queue[i].name, queue[i].age, queue[i].disease);
-    }
-
-    fclose(fp);
-    printf("\nData saved successfully to file!\n");
-}
-
-void loadFromFile() {
-    FILE *fp = fopen("patients.txt", "r");
-    if (fp == NULL) {
-        printf("\nNo previous data found.\n");
-        return;
-    }
-
+// ---------------- SEARCH PATIENT ----------------
+void searchPatient() {
+    int id, i;
+    FILE *fp;
     struct Patient p;
-    while (fscanf(fp, "%d %s %d %s", &p.id, p.name, &p.age, p.disease) != EOF) {
-        if (front == -1)
-            front = 0;
-        queue[++rear] = p;
+
+    printf("Enter Patient ID to search: ");
+    scanf("%d", &id);
+
+    // Search active patients
+    for (i = 0; i < count; i++) {
+        if (patients[i].id == id) {
+            printf("\nPatient Found (ACTIVE):\n");
+            printf("ID   : %d\n", patients[i].id);
+            printf("Name : %s\n", patients[i].name);
+            printf("Age  : %d\n", patients[i].age);
+            printf("Type : %s\n",
+                   patients[i].priority ? "Emergency" : "Normal");
+            return;
+        }
     }
 
-    fclose(fp);
-    printf("\nData loaded successfully from file!\n");
+    // Search discharged patients file
+    fp = fopen("discharged.txt", "r");
+    if (fp != NULL) {
+        while (fscanf(fp, "%d %s %d %d",
+               &p.id, p.name, &p.age, &p.priority) != EOF) {
+
+            if (p.id == id) {
+                printf("\nPatient Found (DISCHARGED):\n");
+                printf("ID   : %d\n", p.id);
+                printf("Name : %s\n", p.name);
+                printf("Age  : %d\n", p.age);
+                printf("Type : %s\n",
+                       p.priority ? "Emergency" : "Normal");
+                fclose(fp);
+                return;
+            }
+        }
+        fclose(fp);
+    }
+
+    printf("Patient not found.\n");
 }
 
+// ---------------- DISCHARGE PATIENT ----------------
+void dischargePatient() {
+    int id, i, pos = -1;
+
+    printf("Enter Patient ID to discharge: ");
+    scanf("%d", &id);
+
+    for (i = 0; i < count; i++) {
+        if (patients[i].id == id) {
+            pos = i;
+            break;
+        }
+    }
+
+    if (pos == -1) {
+        printf("Patient not found.\n");
+        return;
+    }
+
+    // Save full record to discharged file
+    saveDischargedToFile(patients[pos]);
+
+    // Push ID to stack
+    top++;
+    stack[top] = patients[pos].id;
+
+    // Remove from active array
+    for (i = pos; i < count - 1; i++) {
+        patients[i] = patients[i + 1];
+    }
+
+    count--;
+    saveToFile();
+    printf("Patient discharged successfully!\n");
+}
+
+// ---------------- SHOW DISCHARGED STACK ----------------
+void showDischarged() {
+    int i;
+
+    if (top == -1) {
+        printf("No discharged patients.\n");
+        return;
+    }
+
+    printf("\nRecently Discharged Patients (Stack):\n");
+    for (i = top; i >= 0; i--) {
+        printf("Patient ID: %d\n", stack[i]);
+    }
+}
+
+// ---------------- MAIN ----------------
 int main() {
     int choice;
-    loadFromFile();
 
-    while (1) {
-        printf("\n--- Hospital Management System (Phase 2) ---\n");
+    do {
+        printf("\n----- HOSPITAL MANAGEMENT SYSTEM -----\n");
         printf("1. Add Patient\n");
-        printf("2. Display Patients\n");
-        printf("3. Discharge Patient\n");
-        printf("4. Undo Discharge\n");
-        printf("5. Save Data\n");
-        printf("6. Exit\n");
-        printf("Enter your choice: ");
+        printf("2. Display Active Patients\n");
+        printf("3. Search Patient\n");
+        printf("4. Discharge Patient\n");
+        printf("5. Show Recently Discharged\n");
+        printf("0. Exit\n");
+        printf("Enter choice: ");
         scanf("%d", &choice);
 
-        if (choice == 1)
+        switch (choice) {
+        case 1:
             addPatient();
-        else if (choice == 2)
-            displayPatients();
-        else if (choice == 3)
-            dischargePatient();
-        else if (choice == 4)
-            undoDischarge();
-        else if (choice == 5)
-            saveToFile();
-        else if (choice == 6) {
-            saveToFile();
-            printf("\nExiting... All data saved successfully.\n");
             break;
-        } else
-            printf("\nInvalid choice! Please try again.\n");
-    }
+        case 2:
+            displayPatients();
+            break;
+        case 3:
+            searchPatient();
+            break;
+        case 4:
+            dischargePatient();
+            break;
+        case 5:
+            showDischarged();
+            break;
+        case 0:
+            printf("Exiting...\n");
+            break;
+        default:
+            printf("Invalid choice!\n");
+        }
+    } while (choice != 0);
 
     return 0;
 }
-
